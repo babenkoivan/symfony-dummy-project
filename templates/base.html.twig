@@ -1,12 +1,15 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        {% block stylesheets %}{% endblock %}
-    </head>
-    <body>
+<html class="h-100">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="/bootstrap.min.css">
+    {% block stylesheets %}{% endblock %}
+</head>
+<body class="h-100">
+    <div class="container h-100">
         {% block body %}{% endblock %}
-        {% block javascripts %}{% endblock %}
-    </body>
+    </div>
+    {% block javascripts %}{% endblock %}
+</body>
 </html>

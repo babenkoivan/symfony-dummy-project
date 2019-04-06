@@ -17,6 +17,10 @@
 /.web-server-pid
 ###< symfony/web-server-bundle ###
 
+###> PhpStorm ###
+/.idea
+###< PhpStorm ###
+
 ###> docker ###
 /docker/mysql/data/*
 !/docker/mysql/data/.gitkeep

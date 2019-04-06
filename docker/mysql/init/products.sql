@@ -9,8 +9,8 @@ LOCK TABLES `products` WRITE;
 
 INSERT INTO `products` (`id`, `name`, `price`)
 VALUES
-	(1,'product 1',100),
-	(2,'product 2',200),
-	(3,'product 3',300);
+	(1,'Product 1',100),
+	(2,'Product 2',200),
+	(3,'Product 3',300);
 
 UNLOCK TABLES;

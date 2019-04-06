@@ -5,7 +5,11 @@ services:
     build:
       args:
         VERSION: $NGINX_VERSION
-      context: ./docker/nginx
+      context: .
+      dockerfile: ./docker/nginx/Dockerfile
+      target: dev
+    volumes:
+      - ./assets:/app/public
     depends_on:
       - php-fpm
     ports:
@@ -16,18 +20,12 @@ services:
         VERSION: $PHP_VERSION
       context: .
       dockerfile: ./docker/php-fpm/Dockerfile
-      target: prod
-#    volumes:
-#      - .:/app
-#    command: sh -c 'composer install --no-interaction --optimize-autoloader && php-fpm'
+      target: dev
+    volumes:
+      - .:/app
+    command: sh -c 'composer install --no-interaction --optimize-autoloader && php-fpm'
     depends_on:
-      - redis
       - mysql
-  redis:
-    build:
-      args:
-        VERSION: $REDIS_VERSION
-      context: ./docker/redis
   mysql:
     build:
       args:
