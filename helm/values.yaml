@@ -1,0 +1,23 @@
+resources:
+  limits:
+    cpu: 2
+    memory: 1024Mi
+  requests:
+    cpu: 0.25
+    memory: 256Mi
+
+registry:
+  url: ""
+  pullSecret: "pull-secret"
+
+mysql:
+  image: "mysql"
+  port: 3306
+
+nginx:
+  image: "nginx"
+  port: 80
+
+phpfpm:
+  image: "php-fpm"
+  port: 9000

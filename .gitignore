@@ -25,3 +25,5 @@
 /docker/mysql/data/*
 !/docker/mysql/data/.gitkeep
 ###< docker ###
+
+.DS_Store

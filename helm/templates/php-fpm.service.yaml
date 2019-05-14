@@ -1,0 +1,1 @@
+{{ include "service.template" (dict "service" .Values.phpfpm) }}

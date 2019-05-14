@@ -1,0 +1,8 @@
+# OS specific
+.DS_Store
+
+# Common backup files
+*.swp
+*.bak
+*.tmp
+*~
