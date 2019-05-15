@@ -21,3 +21,11 @@ nginx:
 phpfpm:
   image: "php-fpm"
   port: 9000
+  env:
+    secret:
+      APP_SECRET:
+        name: "app-secret"
+        key: "hash"
+      DATABASE_URL:
+        name: "database-secret"
+        key: "url"
