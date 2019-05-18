@@ -1,13 +1,12 @@
 {{- define "service.template" -}}
-{{- $serviceName := .service.name | default .service.image -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $serviceName | quote }}
+  name: {{ .service.name | quote }}
 spec:
   type: ClusterIP
   ports:
     - port: {{ .service.port }}
   selector:
-    service: {{ $serviceName | quote }}
+    service: {{ .service.name | quote }}
 {{- end -}}

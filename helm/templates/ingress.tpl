@@ -1,9 +1,8 @@
 {{- define "ingress.template" -}}
-{{- $serviceName := .service.name | default .service.image -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ $serviceName | quote }}
+  name: {{ .service.name | quote }}
 spec:
   rules:
     - host: {{ .service.host | quote }}
@@ -11,6 +10,6 @@ spec:
         paths:
           - path: /
             backend:
-              serviceName: {{ $serviceName | quote }}
+              serviceName: {{ .service.name | quote }}
               servicePort: {{ .service.port }}
 {{- end -}}

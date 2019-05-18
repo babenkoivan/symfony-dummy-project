@@ -6,26 +6,30 @@ resources:
     cpu: 0.25
     memory: 256Mi
 
-registry:
-  url: ""
-  pullSecret: "pull-secret"
-
 mysql:
-  image: "mysql"
+  name: "mysql"
+  image: "babenkoivan/symfony-dummy-project-mysql"
   port: 3306
+  env:
+    secret:
+      MYSQL_DATABASE:
+        name: "database-secret"
+        key: "database"
+      MYSQL_ROOT_PASSWORD:
+        name: "database-secret"
+        key: "password"
 
 nginx:
-  image: "nginx"
+  name: "nginx"
+  image: "babenkoivan/symfony-dummy-project-nginx"
   port: 80
 
 phpfpm:
-  image: "php-fpm"
+  name: "php-fpm"
+  image: "babenkoivan/symfony-dummy-project-php-fpm"
   port: 9000
   env:
     secret:
-      APP_SECRET:
-        name: "app-secret"
-        key: "hash"
       DATABASE_URL:
         name: "database-secret"
         key: "url"

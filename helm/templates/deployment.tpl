@@ -1,22 +1,21 @@
 {{- define "deployment.template" -}}
-{{- $serviceName := .service.name | default .service.image -}}
 apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: {{ $serviceName | quote }}
+  name: {{ .service.name | quote }}
 spec:
   replicas: {{ .service.replicas | default 1 }}
   selector:
     matchLabels:
-      service: {{ $serviceName | quote }}
+      service: {{ .service.name | quote }}
   template:
     metadata:
       labels:
-        service: {{ $serviceName | quote }}
+        service: {{ .service.name | quote }}
     spec:
       containers:
-        - name: {{ $serviceName | quote }}
-          image: {{ printf "%s/%s:%s" .registry.url .service.image .registry.imageTag | quote }}
+        - name: {{ .service.name | quote }}
+          image: {{ printf "%s:%s" .service.image .imageTag | quote }}
           imagePullPolicy: {{ .service.pullPolicy | default "IfNotPresent" | quote }}
           resources:
 {{ toYaml .resources | trim | indent 12 }}
@@ -38,6 +37,4 @@ spec:
             {{- end }}
           {{- end }}
           {{- end }}
-      imagePullSecrets:
-        - name: {{ .registry.pullSecret | quote }}
 {{- end -}}

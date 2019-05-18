@@ -16,6 +16,7 @@ RUN pecl install xdebug && \
 ## Copy php default configuration
 COPY ./docker/php-fpm/default.ini /usr/local/etc/php/conf.d/default.ini
 
+ENV APP_ENV=dev
 WORKDIR /app
 
 ## Install composer
@@ -41,6 +42,7 @@ RUN chown -R www-data:www-data .
 # Prod image
 FROM test AS prod
 
+ENV APP_ENV=prod
 WORKDIR /app
 
 ## Remove dev dependencies

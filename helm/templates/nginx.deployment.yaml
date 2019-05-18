@@ -1,1 +1,1 @@
-{{ include "deployment.template" (dict "service" .Values.nginx "registry" .Values.registry "resources" .Values.resources) }}
+{{ include "deployment.template" (dict "service" .Values.nginx "imageTag" .Values.imageTag "resources" .Values.resources) }}
