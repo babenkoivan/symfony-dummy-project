@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\Table(name="products")
@@ -19,11 +20,13 @@ class Product
 
     /**
      * @ORM\Column(type="string", length=255)
+     * @Assert\Length(min="4", max="255")
      */
     private $name;
 
     /**
      * @ORM\Column(type="float")
+     * @Assert\GreaterThan(value="0")
      */
     private $price;
 
