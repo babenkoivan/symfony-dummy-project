@@ -1,0 +1,223 @@
+{
+	"info": {
+		"_postman_id": "7cc6ed33-9d60-4731-aa38-e0b553e76995",
+		"name": "Symfony Dummy Project",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Product ",
+			"item": [
+				{
+					"name": "Add",
+					"item": [
+						{
+							"name": "Submit invalid product form",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9e1b255c-aac2-481f-a252-9f93a77b6058",
+										"exec": [
+											"pm.variables.set(\"productName\", \"te\");",
+											"pm.variables.set(\"productPrice\", 0);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"id": "e1317b75-52fc-4068-b27c-9cd37ae3c9ef",
+										"exec": [
+											"let $ = cheerio.load(pm.response.text());",
+											"",
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Invalid name message is displayed\", function () {",
+											"    let errorMessage = $('label[for=\"product_add_name\"] .form-error-message').text().trim();",
+											"    pm.expect(errorMessage).to.equal(\"This value is too short. It should have 4 characters or more.\");",
+											"});",
+											"",
+											"pm.test(\"Invalid price message is displayed\", function () {",
+											"    let errorMessage = $('label[for=\"product_add_price\"] .form-error-message').text().trim();",
+											"    pm.expect(errorMessage).to.include(\"This value should be greater than \\\"0\\\".\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "product_add[name]",
+											"value": "{{productName}}",
+											"type": "text"
+										},
+										{
+											"key": "product_add[price]",
+											"value": "{{productPrice}}",
+											"type": "text"
+										},
+										{
+											"key": "product_add[_token]",
+											"value": "{{csrfToken}}",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/products/add",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"products",
+										"add"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Submit valid product form",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9e1b255c-aac2-481f-a252-9f93a77b6058",
+										"exec": [
+											"pm.variables.set(\"productName\", \"test\");",
+											"pm.variables.set(\"productPrice\", 1000);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"id": "898250ee-cc1b-4666-814d-a218e4c5df18",
+										"exec": [
+											"let $ = cheerio.load(pm.response.text());",
+											"let productName = pm.variables.get(\"productName\");",
+											"let productPrice = pm.variables.get(\"productPrice\");",
+											"",
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"New product is named as \" + productName, function () {",
+											"    let name = $('.card-header').text().trim();",
+											"    pm.expect(name).to.equal(productName);",
+											"});",
+											"",
+											"pm.test(\"New product has price \" + productPrice, function () {",
+											"    let price = $('.card-text strong').text().trim();",
+											"    pm.expect(price).to.equal(productPrice + \"$\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "product_add[name]",
+											"value": "{{productName}}",
+											"type": "text"
+										},
+										{
+											"key": "product_add[price]",
+											"value": "{{productPrice}}",
+											"type": "text"
+										},
+										{
+											"key": "product_add[_token]",
+											"value": "{{csrfToken}}",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/products/add",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"products",
+										"add"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "0ca26a07-7702-442c-9450-b0e9576d1aef",
+								"type": "text/javascript",
+								"exec": [
+									"const baseUrl = pm.variables.get(\"baseUrl\");",
+									"",
+									"pm.sendRequest(baseUrl + \"/products/add\", function (err, response) {",
+									"    let $ = cheerio.load(response.text());",
+									"    let csrfToken = $('#product_add__token').val();",
+									"    ",
+									"    pm.variables.set(\"csrfToken\", csrfToken);",
+									"});"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "2beac3f8-9a17-4b54-bee7-e904afcc7cf9",
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						}
+					],
+					"_postman_isSubFolder": true
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "a6965b47-dc61-4a7b-933a-8c82b8342a43",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "460355cb-46cd-4cf5-85ab-a80cc27f4ca4",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
