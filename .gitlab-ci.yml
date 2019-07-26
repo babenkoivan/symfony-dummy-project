@@ -92,3 +92,51 @@ integration-tests:
   dependencies:
     - build-php-fpm
     - build-mysql
+
+registry-update-php-fpm:
+  stage: registry-update
+  before_script:
+    # Load image from build stage
+    - docker load -i build/php-fpm/php-fpm-prod.tar
+  script:
+    # Tag image
+    - docker tag sdp-php-fpm:prod babenkoivan/symfony-dummy-project-php-fpm:${CI_COMMIT_SHA:0:8}
+    # Push image
+    - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
+    - docker push babenkoivan/symfony-dummy-project-php-fpm:${CI_COMMIT_SHA:0:8}
+  dependencies:
+    - build-php-fpm
+  only:
+    - cd-pipeline
+
+registry-update-nginx:
+  stage: registry-update
+  before_script:
+    # Load image from build stage
+    - docker load -i build/nginx/nginx-prod.tar
+  script:
+    # Tag image
+    - docker tag sdp-nginx:prod babenkoivan/symfony-dummy-project-nginx:${CI_COMMIT_SHA:0:8}
+    # Push image
+    - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
+    - docker push babenkoivan/symfony-dummy-project-nginx:${CI_COMMIT_SHA:0:8}
+  dependencies:
+    - build-nginx
+  only:
+    - cd-pipeline
+
+registry-update-mysql:
+  stage: registry-update
+  before_script:
+    # Load image from build stage
+    - docker load -i build/mysql/mysql-prod.tar
+  script:
+    # Tag image
+    - docker tag sdp-mysql:prod babenkoivan/symfony-dummy-project-mysql:${CI_COMMIT_SHA:0:8}
+    # Push image
+    - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
+    - docker push babenkoivan/symfony-dummy-project-mysql:${CI_COMMIT_SHA:0:8}
+  dependencies:
+    - build-mysql
+  only:
+    - cd-pipeline
