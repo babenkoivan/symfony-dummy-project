@@ -1,0 +1,78 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - unit-tests
+  - registry-update
+  - staging-deployment
+  - end-to-end-tests
+  - production-deployment
+
+build-php:
+  stage: build
+  before_script:
+    # Read env variables
+    - source .env
+  script:
+    # Build the image
+    - docker build --build-arg VERSION="$PHP_VERSION" --target dev -t symfony-dummy-project-php-fpm:dev -f docker/php-fpm/Dockerfile .
+    - docker build --build-arg VERSION="$PHP_VERSION" --target prod -t symfony-dummy-project-php-fpm:prod -f docker/php-fpm/Dockerfile .
+    # Save the image as an artifact
+    - mkdir -p build/php-fpm
+    - docker save symfony-dummy-project-php-fpm:dev -o build/php-fpm/php-fpm-dev.tar
+    - docker save symfony-dummy-project-php-fpm:prod -o build/php-fpm/php-fpm-prod.tar
+  artifacts:
+    name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
+    expire_in: 1 day
+    paths:
+      - build/php-fpm
+  dependencies: []
+
+build-nginx:
+  stage: build
+  before_script:
+    # Read env variables
+    - source .env
+  script:
+    # Build the image
+    - docker build --build-arg VERSION="$NGINX_VERSION" --target prod -t symfony-dummy-project-nginx:prod -f docker/nginx/Dockerfile .
+    # Save the image as an artifact
+    - mkdir -p build/nginx
+    - docker save symfony-dummy-project-nginx:prod -o build/nginx/nginx-prod.tar
+  artifacts:
+    name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
+    expire_in: 1 day
+    paths:
+      - build/nginx
+  dependencies: []
+
+build-mysql:
+  stage: build
+  before_script:
+    # Read env variables
+    - source .env
+  script:
+    # Build the image
+    - docker build --build-arg VERSION="$MYSQL_VERSION" -t symfony-dummy-project-mysql:prod docker/mysql
+    # Save the image as an artifact
+    - mkdir -p build/mysql
+    - docker save symfony-dummy-project-mysql:prod -o build/mysql/mysql-prod.tar
+  artifacts:
+    name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
+    expire_in: 1 day
+    paths:
+      - build/mysql
+  dependencies: []
+
+unit-tests:
+  stage: unit-tests
+  before_script:
+    # Load php image from build stage
+    - docker load -i build/php-fpm/php-fpm-dev.tar
+  script:
+    - docker run --rm symfony-dummy-project-php-fpm:dev bin/phpunit
+  dependencies:
+    - build-php-fpm
