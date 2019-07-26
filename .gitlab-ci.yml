@@ -5,7 +5,7 @@ services:
 
 stages:
   - build
-  - unit-tests
+  - test
   - registry-update
   - staging-deployment
   - end-to-end-tests
@@ -18,12 +18,12 @@ build-php-fpm:
     - source .env
   script:
     # Build the image
-    - docker build --build-arg VERSION="$PHP_VERSION" --target dev -t symfony-dummy-project-php-fpm:dev -f docker/php-fpm/Dockerfile .
-    - docker build --build-arg VERSION="$PHP_VERSION" --target prod -t symfony-dummy-project-php-fpm:prod -f docker/php-fpm/Dockerfile .
+    - docker build --build-arg VERSION=$PHP_VERSION --target test -t sdp-php-fpm:test -f docker/php-fpm/Dockerfile .
+    - docker build --build-arg VERSION=$PHP_VERSION --target prod -t sdp-php-fpm:prod -f docker/php-fpm/Dockerfile .
     # Save the image as an artifact
     - mkdir -p build/php-fpm
-    - docker save symfony-dummy-project-php-fpm:dev -o build/php-fpm/php-fpm-dev.tar
-    - docker save symfony-dummy-project-php-fpm:prod -o build/php-fpm/php-fpm-prod.tar
+    - docker save sdp-php-fpm:test -o build/php-fpm/php-fpm-test.tar
+    - docker save sdp-php-fpm:prod -o build/php-fpm/php-fpm-prod.tar
   artifacts:
     name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
     expire_in: 1 day
@@ -38,10 +38,10 @@ build-nginx:
     - source .env
   script:
     # Build the image
-    - docker build --build-arg VERSION="$NGINX_VERSION" --target prod -t symfony-dummy-project-nginx:prod -f docker/nginx/Dockerfile .
+    - docker build --build-arg VERSION=$NGINX_VERSION --target prod -t sdp-nginx:prod -f docker/nginx/Dockerfile .
     # Save the image as an artifact
     - mkdir -p build/nginx
-    - docker save symfony-dummy-project-nginx:prod -o build/nginx/nginx-prod.tar
+    - docker save sdp-nginx:prod -o build/nginx/nginx-prod.tar
   artifacts:
     name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
     expire_in: 1 day
@@ -56,10 +56,10 @@ build-mysql:
     - source .env
   script:
     # Build the image
-    - docker build --build-arg VERSION="$MYSQL_VERSION" -t symfony-dummy-project-mysql:prod docker/mysql
+    - docker build --build-arg VERSION=$MYSQL_VERSION -t sdp-mysql:prod docker/mysql
     # Save the image as an artifact
     - mkdir -p build/mysql
-    - docker save symfony-dummy-project-mysql:prod -o build/mysql/mysql-prod.tar
+    - docker save sdp-mysql:prod -o build/mysql/mysql-prod.tar
   artifacts:
     name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
     expire_in: 1 day
@@ -68,11 +68,27 @@ build-mysql:
   dependencies: []
 
 unit-tests:
-  stage: unit-tests
+  stage: test
   before_script:
     # Load php image from build stage
-    - docker load -i build/php-fpm/php-fpm-dev.tar
+    - docker load -i build/php-fpm/php-fpm-test.tar
   script:
-    - docker run --rm symfony-dummy-project-php-fpm:dev bin/phpunit
+    - docker run --rm sdp-php-fpm:test bin/phpunit --testsuit unit --testdox
   dependencies:
     - build-php-fpm
+
+integration-tests:
+  stage: test
+  before_script:
+    # Load php image from build stage
+    - docker load -i build/php-fpm/php-fpm-test.tar
+    - docker load -i build/mysql/mysql-prod.tar
+    # Start mysql
+    - source .env
+    - docker network create sdp-net
+    - docker run --rm -d --network sdp-net --network-alias mysql -e MYSQL_DATABASE=$MYSQL_DATABASE -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD sdp-mysql:prod
+  script:
+    - docker run --rm --network sdp-net sdp-php-fpm:test sh -c "sh ci/check-connection mysql 3306 && bin/phpunit --testsuit integration --testdox"
+  dependencies:
+    - build-php-fpm
+    - build-mysql
