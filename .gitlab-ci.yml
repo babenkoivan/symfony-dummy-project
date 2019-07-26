@@ -11,7 +11,7 @@ stages:
   - end-to-end-tests
   - production-deployment
 
-build-php:
+build-php-fpm:
   stage: build
   before_script:
     # Read env variables
