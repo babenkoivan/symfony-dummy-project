@@ -70,7 +70,7 @@ build-mysql:
 unit-tests:
   stage: test
   before_script:
-    # Load php image from build stage
+    # Load php image from the build stage
     - docker load -i build/php-fpm/php-fpm-test.tar
   script:
     - docker run --rm sdp-php-fpm:test bin/phpunit --testsuit unit --testdox
@@ -80,7 +80,7 @@ unit-tests:
 integration-tests:
   stage: test
   before_script:
-    # Load php image from build stage
+    # Load php image from the build stage
     - docker load -i build/php-fpm/php-fpm-test.tar
     - docker load -i build/mysql/mysql-prod.tar
     # Start mysql
@@ -96,12 +96,12 @@ integration-tests:
 registry-update-php-fpm:
   stage: registry-update
   before_script:
-    # Load image from build stage
+    # Load image from the build stage
     - docker load -i build/php-fpm/php-fpm-prod.tar
   script:
-    # Tag image
+    # Tag the image
     - docker tag sdp-php-fpm:prod babenkoivan/symfony-dummy-project-php-fpm:${CI_COMMIT_SHA:0:8}
-    # Push image
+    # Push the image
     - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
     - docker push babenkoivan/symfony-dummy-project-php-fpm:${CI_COMMIT_SHA:0:8}
   dependencies:
@@ -112,12 +112,12 @@ registry-update-php-fpm:
 registry-update-nginx:
   stage: registry-update
   before_script:
-    # Load image from build stage
+    # Load image from the build stage
     - docker load -i build/nginx/nginx-prod.tar
   script:
-    # Tag image
+    # Tag the image
     - docker tag sdp-nginx:prod babenkoivan/symfony-dummy-project-nginx:${CI_COMMIT_SHA:0:8}
-    # Push image
+    # Push the image
     - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
     - docker push babenkoivan/symfony-dummy-project-nginx:${CI_COMMIT_SHA:0:8}
   dependencies:
@@ -128,15 +128,74 @@ registry-update-nginx:
 registry-update-mysql:
   stage: registry-update
   before_script:
-    # Load image from build stage
+    # Load image from the build stage
     - docker load -i build/mysql/mysql-prod.tar
   script:
-    # Tag image
+    # Tag the image
     - docker tag sdp-mysql:prod babenkoivan/symfony-dummy-project-mysql:${CI_COMMIT_SHA:0:8}
-    # Push image
+    # Push the image
     - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
     - docker push babenkoivan/symfony-dummy-project-mysql:${CI_COMMIT_SHA:0:8}
   dependencies:
     - build-mysql
+  only:
+    - cd-pipeline
+
+staging-deploy:
+  stage: staging-deployment
+  image: babenkoivan/helm-gke
+  before_script:
+    # Activate the service account
+    - sh ci/activate-service-account $SERVICE_ACCOUNT_KEY
+    # Fetch cluster credentials
+    - sh ci/get-cluster-credentials $CLUSTER_NAME_STAGE $CLUSTER_ZONE_STAGE
+  script:
+    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=stage,nginx.host=stage.symfony-dummy-project.io,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
+  dependencies: []
+  only:
+    - cd-pipeline
+
+staging-rollback:
+  stage: staging-deployment
+  image: babenkoivan/helm-gke
+  before_script:
+    # Activate the service account
+    - sh ci/activate-service-account $SERVICE_ACCOUNT_KEY
+    # Fetch cluster credentials
+    - sh ci/get-cluster-credentials $CLUSTER_NAME_STAGE $CLUSTER_ZONE_STAGE
+  script:
+    - helm rollback symfony-dummy-project 0
+  dependencies: []
+  when: manual
+  only:
+    - cd-pipeline
+
+production-deploy:
+  stage: production-deployment
+  image: babenkoivan/helm-gke
+  before_script:
+    # Activate the service account
+    - sh ci/activate-service-account $SERVICE_ACCOUNT_KEY
+    # Fetch cluster credentials
+    - sh ci/get-cluster-credentials $CLUSTER_NAME_PROD $CLUSTER_ZONE_PROD
+  script:
+    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=prod,nginx.host=symfony-dummy-project.io,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
+  dependencies: []
+  when: manual
+  only:
+    - cd-pipeline
+
+production-rollback:
+  stage: production-deployment
+  image: babenkoivan/helm-gke
+  before_script:
+    # Activate the service account
+    - sh ci/activate-service-account $SERVICE_ACCOUNT_KEY
+    # Fetch cluster credentials
+    - sh ci/get-cluster-credentials $CLUSTER_NAME_PROD $CLUSTER_ZONE_PROD
+  script:
+    - helm rollback symfony-dummy-project 0
+  dependencies: []
+  when: manual
   only:
     - cd-pipeline
