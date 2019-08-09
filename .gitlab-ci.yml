@@ -150,7 +150,7 @@ staging-deploy:
     # Fetch cluster credentials
     - gcloud container clusters get-credentials $CLUSTER_NAME_STAGE --zone $CLUSTER_ZONE_STAGE --project symfony-dummy-project
   script:
-    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=stage,nginx.host=stage.symfony-dummy-project.io,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
+    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=stage,nginx.host=$HOST_STAGE,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
   after_script:
     # Check the rollout
     - sh ci/check-rollout symfony-dummy-project
@@ -179,7 +179,7 @@ end-to-end-test:
     name: postman/newman:alpine
     entrypoint: [""]
   script:
-    - newman run -e EndToEnd/env.dev.json EndToEnd/collection.json
+    - newman run -e tests/EndToEnd/env.stage.json tests/EndToEnd/collection.json
   dependencies: []
   only:
     - cd-pipeline
@@ -194,7 +194,7 @@ production-deploy:
     # Fetch cluster credentials
     - gcloud container clusters get-credentials $CLUSTER_NAME_PROD --zone $CLUSTER_ZONE_PROD --project symfony-dummy-project
   script:
-    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=prod,nginx.host=symfony-dummy-project.io,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
+    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=prod,nginx.host=$HOST_PROD,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
   dependencies: []
   when: manual
   only:
