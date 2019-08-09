@@ -1,0 +1,8 @@
+#!/bin/sh
+
+namespace=$1
+
+for i in $(kubectl get deploy -n $namespace -o jsonpath="{@.items[*].metadata.name}")
+do
+    kubectl rollout status deploy/$i -n $namespace
+done
