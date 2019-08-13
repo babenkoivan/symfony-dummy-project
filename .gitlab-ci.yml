@@ -21,13 +21,13 @@ stages:
     - docker build --build-arg VERSION=$BUILD_VERSION --target $BUILD_TARGET -t $BUILD_IMAGE:$BUILD_TARGET -f $BUILD_DOCKERFILE $BUILD_CONTEXT
   after_script:
     # Save the image as an artifact
-    - mkdir -p build/$CI_JOB_NAME
-    - docker save $BUILD_IMAGE:$BUILD_TARGET -o build/$CI_JOB_NAME/image.tar
+    - mkdir -p build/$BUILD_IMAGE
+    - docker save $BUILD_IMAGE:$BUILD_TARGET -o build/$BUILD_IMAGE/$BUILD_TARGET.tar
   artifacts:
     name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
     expire_in: 1 day
     paths:
-      - build/$CI_JOB_NAME
+      - build/$BUILD_IMAGE
   dependencies: []
 
 build-php-fpm-test:
@@ -70,7 +70,7 @@ unit-tests:
   stage: test
   before_script:
     # Load php image from the build stage
-    - docker load -i build/build-php-fpm-test/image.tar
+    - docker load -i build/symfony-dummy-project-php-fpm/test.tar
   script:
     - docker run --rm symfony-dummy-project-php-fpm:test bin/phpunit --testsuit unit --testdox
   dependencies:
@@ -80,8 +80,8 @@ integration-tests:
   stage: test
   before_script:
     # Load php image from the build stage
-    - docker load -i build/build-php-fpm-test/image.tar
-    - docker load -i build/build-mysql-prod/image.tar
+    - docker load -i build/symfony-dummy-project-php-fpm/test.tar
+    - docker load -i build/symfony-dummy-project-mysql/prod.tar
     # Start mysql
     - source .env
     - docker network create symfony-dummy-project-net
@@ -96,15 +96,13 @@ integration-tests:
   stage: registry-update
   before_script:
     # Load image from the build stage
-    - docker load -i build/$BUILD_JOB/image.tar
+    - docker load -i build/$BUILD_IMAGE/$BUILD_TARGET.tar
   script:
     # Tag the image
     - docker tag $BUILD_IMAGE:$BUILD_TARGET babenkoivan/$BUILD_IMAGE:${CI_COMMIT_SHA:0:8}
     # Push the image
     - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
     - docker push babenkoivan/$BUILD_IMAGE:${CI_COMMIT_SHA:0:8}
-  dependencies:
-    - $BUILD_JOB
   only:
     - cd-pipeline
 
@@ -113,24 +111,26 @@ registry-update-php-fpm:
   variables:
     BUILD_IMAGE: symfony-dummy-project-php-fpm
     BUILD_TARGET: prod
-    BUILD_JOB: build-php-fpm-prod
+  dependencies:
+    - build-php-fpm-prod
 
 registry-update-nginx:
   <<: *registryUpdateTemplate
   variables:
     BUILD_IMAGE: symfony-dummy-project-nginx
     BUILD_TARGET: prod
-    BUILD_JOB: build-nginx-prod
+  dependencies:
+    - build-nginx-prod
 
 registry-update-mysql:
   <<: *registryUpdateTemplate
   variables:
     BUILD_IMAGE: symfony-dummy-project-mysql
     BUILD_TARGET: prod
-    BUILD_JOB: build-mysql-prod
+  dependencies:
+    - build-mysql-prod
 
 .deploy-template: &deployTemplate
-  stage: $ENVIRONMENT-deployment
   image: babenkoivan/helm-gke
   before_script:
     # Fetch cluster credentials
@@ -148,6 +148,7 @@ deploy-staging:
     CLUSTER_NAME: $CLUSTER_NAME_STAGE
     CLUSTER_ZONE: $CLUSTER_ZONE_STAGE
     HOST: $HOST_STAGE
+  stage: stage-deployment
   after_script:
     # Wait for the rollout to complete
     - sh ci/wait-for-rollout symfony-dummy-project
@@ -159,6 +160,7 @@ deploy-production:
     CLUSTER_NAME: $CLUSTER_NAME_PROD
     CLUSTER_ZONE: $CLUSTER_ZONE_PROD
     HOST: $HOST_PROD
+  stage: production-deployment
 
 end-to-end-test:
   stage: end-to-end-tests
@@ -172,7 +174,6 @@ end-to-end-test:
     - cd-pipeline
 
 .rollback-template: &rollbackTemplate
-  stage: $ENVIRONMENT-deployment
   image: babenkoivan/helm-gke
   before_script:
     # Fetch cluster credentials
@@ -187,9 +188,13 @@ end-to-end-test:
 rollback-staging:
   <<: *rollbackTemplate
   variables:
-    ENVIRONMENT: stage
+    CLUSTER_NAME: $CLUSTER_NAME_STAGE
+    CLUSTER_ZONE: $CLUSTER_ZONE_STAGE
+  stage: stage-deployment
 
 rollback-production:
   <<: *rollbackTemplate
   variables:
-    ENVIRONMENT: prod
+    CLUSTER_NAME: $CLUSTER_NAME_PROD
+    CLUSTER_ZONE: $CLUSTER_ZONE_PROD
+  stage: production-deployment
