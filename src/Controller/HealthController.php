@@ -29,7 +29,7 @@ final class HealthController extends AbstractController
      */
     public function status(): Response
     {
-        if ($this->connection->isConnected()) {
+        if ($this->connection->connect()) {
             return new Response('Up');
         } else {
             return new Response('Down: database connection error', Response::HTTP_INTERNAL_SERVER_ERROR);

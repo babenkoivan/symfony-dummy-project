@@ -32,17 +32,17 @@ final class HealthControllerTest extends TestCase
     }
 
     /**
-     * @param bool $isConnected
+     * @param bool $reachable
      * @return MockObject
      */
-    private function createConnectionMock(bool $isConnected): MockObject
+    private function createConnectionMock(bool $reachable): MockObject
     {
         $connectionMock = $this->createMock(Connection::class);
 
         $connectionMock
             ->expects($this->once())
-            ->method('isConnected')
-            ->willReturn($isConnected);
+            ->method('connect')
+            ->willReturn($reachable);
 
         return $connectionMock;
     }
