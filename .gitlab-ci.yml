@@ -11,11 +11,11 @@ stages:
   - end-to-end-tests
   - production-deployment
 
+variables:
+  MASTER_BRANCH: cd-pipeline
+
 .build-template: &buildTemplate
   stage: build
-  before_script:
-    # Read env variables
-    - source .env
   script:
     # Build the image
     - docker build --build-arg VERSION=$BUILD_VERSION --target $BUILD_TARGET -t $BUILD_IMAGE:$BUILD_TARGET -f $BUILD_DOCKERFILE $BUILD_CONTEXT
@@ -35,36 +35,44 @@ build-php-fpm-test:
   variables:
     BUILD_IMAGE: symfony-dummy-project-php-fpm
     BUILD_TARGET: test
-    BUILD_VERSION: $PHP_VERSION
     BUILD_DOCKERFILE: docker/php-fpm/Dockerfile
     BUILD_CONTEXT: .
+  before_script:
+    # Export build version
+    - source .env && export BUILD_VERSION=$PHP_VERSION
 
 build-php-fpm-prod:
   <<: *buildTemplate
   variables:
     BUILD_IMAGE: symfony-dummy-project-php-fpm
     BUILD_TARGET: prod
-    BUILD_VERSION: $PHP_VERSION
     BUILD_DOCKERFILE: docker/php-fpm/Dockerfile
     BUILD_CONTEXT: .
+  before_script:
+    # Export build version
+    - source .env && export BUILD_VERSION=$PHP_VERSION
 
 build-nginx-prod:
   <<: *buildTemplate
   variables:
     BUILD_IMAGE: symfony-dummy-project-nginx
     BUILD_TARGET: prod
-    BUILD_VERSION: $NGINX_VERSION
     BUILD_DOCKERFILE: docker/nginx/Dockerfile
     BUILD_CONTEXT: .
+  before_script:
+    # Export build version
+    - source .env && export BUILD_VERSION=$NGINX_VERSION
 
 build-mysql-prod:
   <<: *buildTemplate
   variables:
     BUILD_IMAGE: symfony-dummy-project-mysql
     BUILD_TARGET: prod
-    BUILD_VERSION: $MYSQL_VERSION
     BUILD_DOCKERFILE: docker/mysql/Dockerfile
     BUILD_CONTEXT: docker/mysql
+  before_script:
+    # Export build version
+    - source .env && export BUILD_VERSION=$MYSQL_VERSION
 
 unit-tests:
   stage: test
@@ -104,7 +112,7 @@ integration-tests:
     - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
     - docker push babenkoivan/$BUILD_IMAGE:${CI_COMMIT_SHA:0:8}
   only:
-    - cd-pipeline
+    - $MASTER_BRANCH
 
 registry-update-php-fpm:
   <<: *registryUpdateTemplate
@@ -139,7 +147,7 @@ registry-update-mysql:
     - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=$ENVIRONMENT,nginx.host=$HOST,nginx.ip=$STATIC_IP,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
   dependencies: []
   only:
-    - cd-pipeline
+    - $MASTER_BRANCH
 
 deploy-staging:
   <<: *deployTemplate
@@ -171,7 +179,7 @@ end-to-end-test:
     - newman run -e tests/EndToEnd/env.stage.json tests/EndToEnd/collection.json
   dependencies: []
   only:
-    - cd-pipeline
+    - $MASTER_BRANCH
 
 .rollback-template: &rollbackTemplate
   image: babenkoivan/helm-gke
@@ -183,7 +191,7 @@ end-to-end-test:
   dependencies: []
   when: manual
   only:
-    - cd-pipeline
+    - $MASTER_BRANCH
 
 rollback-staging:
   <<: *rollbackTemplate
