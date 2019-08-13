@@ -24,12 +24,8 @@ nginx:
   image: "babenkoivan/symfony-dummy-project-nginx"
   port: 80
   probes:
-    livenessProbe:
-      httpGet:
-        path: /health
-    readinessProbe:
-      httpGet:
-        path: /health
+    liveness: /health
+    readiness: /health
 
 phpfpm:
   name: "php-fpm"

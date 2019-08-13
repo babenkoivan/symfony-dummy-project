@@ -20,7 +20,14 @@ spec:
           resources:
 {{ toYaml .resources | trim | indent 12 }}
           {{- if (.service.probes) }}
-{{ toYaml .service.probes | trim | indent 10 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .service.probes.liveness | quote }}
+              port: {{ .service.port }}
+          readinessProbe:
+            httpGet:
+              path: {{ .service.probes.readiness | quote }}
+              port: {{ .service.port }}
           {{- end }}
           {{- if (.service.env) }}
           env:
