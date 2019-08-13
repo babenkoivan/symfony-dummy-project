@@ -11,9 +11,6 @@ stages:
   - end-to-end-tests
   - production-deployment
 
-variables:
-  MASTER_BRANCH: cd-pipeline
-
 .build-template: &buildTemplate
   stage: build
   script:
@@ -112,7 +109,7 @@ integration-tests:
     - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
     - docker push babenkoivan/$BUILD_IMAGE:${CI_COMMIT_SHA:0:8}
   only:
-    - $MASTER_BRANCH
+    - cd-pipeline
 
 registry-update-php-fpm:
   <<: *registryUpdateTemplate
@@ -147,7 +144,7 @@ registry-update-mysql:
     - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=$ENVIRONMENT,nginx.host=$HOST,nginx.ip=$STATIC_IP,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
   dependencies: []
   only:
-    - $MASTER_BRANCH
+    - cd-pipeline
 
 deploy-staging:
   <<: *deployTemplate
@@ -179,7 +176,7 @@ end-to-end-test:
     - newman run -e tests/EndToEnd/env.stage.json tests/EndToEnd/collection.json
   dependencies: []
   only:
-    - $MASTER_BRANCH
+    - cd-pipeline
 
 .rollback-template: &rollbackTemplate
   image: babenkoivan/helm-gke
@@ -191,7 +188,7 @@ end-to-end-test:
   dependencies: []
   when: manual
   only:
-    - $MASTER_BRANCH
+    - cd-pipeline
 
 rollback-staging:
   <<: *rollbackTemplate
