@@ -23,6 +23,13 @@ nginx:
   name: "nginx"
   image: "babenkoivan/symfony-dummy-project-nginx"
   port: 80
+  probes:
+    livenessProbe:
+      httpGet:
+        path: /health
+    readinessProbe:
+      httpGet:
+        path: /health
 
 phpfpm:
   name: "php-fpm"

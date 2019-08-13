@@ -19,6 +19,9 @@ spec:
           imagePullPolicy: {{ .service.pullPolicy | default "IfNotPresent" | quote }}
           resources:
 {{ toYaml .resources | trim | indent 12 }}
+          {{- if (.service.probes) }}
+{{ toYaml .service.probes | trim | indent 10 }}
+          {{- end }}
           {{- if (.service.env) }}
           env:
           {{- if (.service.env.plain) }}

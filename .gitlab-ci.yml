@@ -7,171 +7,158 @@ stages:
   - build
   - test
   - registry-update
-  - staging-deployment
+  - stage-deployment
   - end-to-end-tests
   - production-deployment
 
-build-php-fpm:
+.build-template: &buildTemplate
   stage: build
   before_script:
     # Read env variables
     - source .env
   script:
     # Build the image
-    - docker build --build-arg VERSION=$PHP_VERSION --target test -t sdp-php-fpm:test -f docker/php-fpm/Dockerfile .
-    - docker build --build-arg VERSION=$PHP_VERSION --target prod -t sdp-php-fpm:prod -f docker/php-fpm/Dockerfile .
+    - docker build --build-arg VERSION=$BUILD_VERSION --target $BUILD_TARGET -t $BUILD_IMAGE:$BUILD_TARGET -f $BUILD_DOCKERFILE $BUILD_CONTEXT
+  after_script:
     # Save the image as an artifact
-    - mkdir -p build/php-fpm
-    - docker save sdp-php-fpm:test -o build/php-fpm/php-fpm-test.tar
-    - docker save sdp-php-fpm:prod -o build/php-fpm/php-fpm-prod.tar
+    - mkdir -p build/$CI_JOB_NAME
+    - docker save $BUILD_IMAGE:$BUILD_TARGET -o build/$CI_JOB_NAME/image.tar
   artifacts:
     name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
     expire_in: 1 day
     paths:
-      - build/php-fpm
+      - build/$CI_JOB_NAME
   dependencies: []
 
-build-nginx:
-  stage: build
-  before_script:
-    # Read env variables
-    - source .env
-  script:
-    # Build the image
-    - docker build --build-arg VERSION=$NGINX_VERSION --target prod -t sdp-nginx:prod -f docker/nginx/Dockerfile .
-    # Save the image as an artifact
-    - mkdir -p build/nginx
-    - docker save sdp-nginx:prod -o build/nginx/nginx-prod.tar
-  artifacts:
-    name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
-    expire_in: 1 day
-    paths:
-      - build/nginx
-  dependencies: []
+build-php-fpm-test:
+  <<: *buildTemplate
+  variables:
+    BUILD_IMAGE: symfony-dummy-project-php-fpm
+    BUILD_TARGET: test
+    BUILD_VERSION: $PHP_VERSION
+    BUILD_DOCKERFILE: docker/php-fpm/Dockerfile
+    BUILD_CONTEXT: .
 
-build-mysql:
-  stage: build
-  before_script:
-    # Read env variables
-    - source .env
-  script:
-    # Build the image
-    - docker build --build-arg VERSION=$MYSQL_VERSION -t sdp-mysql:prod docker/mysql
-    # Save the image as an artifact
-    - mkdir -p build/mysql
-    - docker save sdp-mysql:prod -o build/mysql/mysql-prod.tar
-  artifacts:
-    name: $CI_JOB_NAME-${CI_COMMIT_SHA:0:8}
-    expire_in: 1 day
-    paths:
-      - build/mysql
-  dependencies: []
+build-php-fpm-prod:
+  <<: *buildTemplate
+  variables:
+    BUILD_IMAGE: symfony-dummy-project-php-fpm
+    BUILD_TARGET: prod
+    BUILD_VERSION: $PHP_VERSION
+    BUILD_DOCKERFILE: docker/php-fpm/Dockerfile
+    BUILD_CONTEXT: .
+
+build-nginx-prod:
+  <<: *buildTemplate
+  variables:
+    BUILD_IMAGE: symfony-dummy-project-nginx
+    BUILD_TARGET: prod
+    BUILD_VERSION: $NGINX_VERSION
+    BUILD_DOCKERFILE: docker/nginx/Dockerfile
+    BUILD_CONTEXT: .
+
+build-mysql-prod:
+  <<: *buildTemplate
+  variables:
+    BUILD_IMAGE: symfony-dummy-project-mysql
+    BUILD_TARGET: prod
+    BUILD_VERSION: $MYSQL_VERSION
+    BUILD_DOCKERFILE: docker/mysql/Dockerfile
+    BUILD_CONTEXT: docker/mysql
 
 unit-tests:
   stage: test
   before_script:
     # Load php image from the build stage
-    - docker load -i build/php-fpm/php-fpm-test.tar
+    - docker load -i build/build-php-fpm-test/image.tar
   script:
-    - docker run --rm sdp-php-fpm:test bin/phpunit --testsuit unit --testdox
+    - docker run --rm symfony-dummy-project-php-fpm:test bin/phpunit --testsuit unit --testdox
   dependencies:
-    - build-php-fpm
+    - build-php-fpm-test
 
 integration-tests:
   stage: test
   before_script:
     # Load php image from the build stage
-    - docker load -i build/php-fpm/php-fpm-test.tar
-    - docker load -i build/mysql/mysql-prod.tar
+    - docker load -i build/build-php-fpm-test/image.tar
+    - docker load -i build/build-mysql-prod/image.tar
     # Start mysql
     - source .env
-    - docker network create sdp-net
-    - docker run --rm -d --network sdp-net --network-alias mysql -e MYSQL_DATABASE=$MYSQL_DATABASE -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD sdp-mysql:prod
+    - docker network create symfony-dummy-project-net
+    - docker run --rm -d --network symfony-dummy-project-net --network-alias mysql -e MYSQL_DATABASE=$MYSQL_DATABASE -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD symfony-dummy-project-mysql:prod
   script:
-    - docker run --rm --network sdp-net sdp-php-fpm:test sh -c "sh ci/check-connection mysql 3306 && bin/phpunit --testsuit integration --testdox"
+    - docker run --rm --network symfony-dummy-project-net symfony-dummy-project-php-fpm:test sh -c "sh ci/check-connection mysql 3306 && bin/phpunit --testsuit integration --testdox"
   dependencies:
-    - build-php-fpm
-    - build-mysql
+    - build-php-fpm-test
+    - build-mysql-prod
+
+.registry-update-template: &registryUpdateTemplate
+  stage: registry-update
+  before_script:
+    # Load image from the build stage
+    - docker load -i build/$BUILD_JOB/image.tar
+  script:
+    # Tag the image
+    - docker tag $BUILD_IMAGE:$BUILD_TARGET babenkoivan/$BUILD_IMAGE:${CI_COMMIT_SHA:0:8}
+    # Push the image
+    - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
+    - docker push babenkoivan/$BUILD_IMAGE:${CI_COMMIT_SHA:0:8}
+  dependencies:
+    - $BUILD_JOB
+  only:
+    - cd-pipeline
 
 registry-update-php-fpm:
-  stage: registry-update
-  before_script:
-    # Load image from the build stage
-    - docker load -i build/php-fpm/php-fpm-prod.tar
-  script:
-    # Tag the image
-    - docker tag sdp-php-fpm:prod babenkoivan/symfony-dummy-project-php-fpm:${CI_COMMIT_SHA:0:8}
-    # Push the image
-    - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
-    - docker push babenkoivan/symfony-dummy-project-php-fpm:${CI_COMMIT_SHA:0:8}
-  dependencies:
-    - build-php-fpm
-  only:
-    - cd-pipeline
+  <<: *registryUpdateTemplate
+  variables:
+    BUILD_IMAGE: symfony-dummy-project-php-fpm
+    BUILD_TARGET: prod
+    BUILD_JOB: build-php-fpm-prod
 
 registry-update-nginx:
-  stage: registry-update
-  before_script:
-    # Load image from the build stage
-    - docker load -i build/nginx/nginx-prod.tar
-  script:
-    # Tag the image
-    - docker tag sdp-nginx:prod babenkoivan/symfony-dummy-project-nginx:${CI_COMMIT_SHA:0:8}
-    # Push the image
-    - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
-    - docker push babenkoivan/symfony-dummy-project-nginx:${CI_COMMIT_SHA:0:8}
-  dependencies:
-    - build-nginx
-  only:
-    - cd-pipeline
+  <<: *registryUpdateTemplate
+  variables:
+    BUILD_IMAGE: symfony-dummy-project-nginx
+    BUILD_TARGET: prod
+    BUILD_JOB: build-nginx-prod
 
 registry-update-mysql:
-  stage: registry-update
+  <<: *registryUpdateTemplate
+  variables:
+    BUILD_IMAGE: symfony-dummy-project-mysql
+    BUILD_TARGET: prod
+    BUILD_JOB: build-mysql-prod
+
+.deploy-template: &deployTemplate
+  stage: $ENVIRONMENT-deployment
+  image: babenkoivan/helm-gke
   before_script:
-    # Load image from the build stage
-    - docker load -i build/mysql/mysql-prod.tar
+    # Fetch cluster credentials
+    - sh ci/fetch-cluster-credentials $SERVICE_ACCOUNT_KEY $CLUSTER_NAME $CLUSTER_ZONE
   script:
-    # Tag the image
-    - docker tag sdp-mysql:prod babenkoivan/symfony-dummy-project-mysql:${CI_COMMIT_SHA:0:8}
-    # Push the image
-    - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
-    - docker push babenkoivan/symfony-dummy-project-mysql:${CI_COMMIT_SHA:0:8}
-  dependencies:
-    - build-mysql
+    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=$ENVIRONMENT,nginx.host=$HOST,nginx.ip=$STATIC_IP,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
+  dependencies: []
   only:
     - cd-pipeline
 
-staging-deploy:
-  stage: staging-deployment
-  image: babenkoivan/helm-gke
-  before_script:
-    # Activate the service account
-    - gcloud auth activate-service-account --key-file=$SERVICE_ACCOUNT_KEY
-    # Fetch cluster credentials
-    - gcloud container clusters get-credentials $CLUSTER_NAME_STAGE --zone $CLUSTER_ZONE_STAGE --project symfony-dummy-project
-  script:
-    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=stage,nginx.host=$HOST_STAGE,nginx.ip=$STATIC_IP,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
+deploy-staging:
+  <<: *deployTemplate
+  variables:
+    ENVIRONMENT: stage
+    CLUSTER_NAME: $CLUSTER_NAME_STAGE
+    CLUSTER_ZONE: $CLUSTER_ZONE_STAGE
+    HOST: $HOST_STAGE
   after_script:
-    # Check the rollout
-    - sh ci/check-rollout symfony-dummy-project
-  dependencies: []
-  only:
-    - cd-pipeline
+    # Wait for the rollout to complete
+    - sh ci/wait-for-rollout symfony-dummy-project
 
-staging-rollback:
-  stage: staging-deployment
-  image: babenkoivan/helm-gke
-  before_script:
-    # Activate the service account
-    - gcloud auth activate-service-account --key-file=$SERVICE_ACCOUNT_KEY
-    # Fetch cluster credentials
-    - gcloud container clusters get-credentials $CLUSTER_NAME_STAGE --zone $CLUSTER_ZONE_STAGE --project symfony-dummy-project
-  script:
-    - helm rollback symfony-dummy-project 0
-  dependencies: []
-  when: manual
-  only:
-    - cd-pipeline
+deploy-production:
+  <<: *deployTemplate
+  variables:
+    ENVIRONMENT: prod
+    CLUSTER_NAME: $CLUSTER_NAME_PROD
+    CLUSTER_ZONE: $CLUSTER_ZONE_PROD
+    HOST: $HOST_PROD
 
 end-to-end-test:
   stage: end-to-end-tests
@@ -184,33 +171,25 @@ end-to-end-test:
   only:
     - cd-pipeline
 
-
-production-deploy:
-  stage: production-deployment
+.rollback-template: &rollbackTemplate
+  stage: $ENVIRONMENT-deployment
   image: babenkoivan/helm-gke
   before_script:
-    # Activate the service account
-    - gcloud auth activate-service-account --key-file=$SERVICE_ACCOUNT_KEY
     # Fetch cluster credentials
-    - gcloud container clusters get-credentials $CLUSTER_NAME_PROD --zone $CLUSTER_ZONE_PROD --project symfony-dummy-project
-  script:
-    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=prod,nginx.host=$HOST_PROD,nginx.ip=$STATIC_IP,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
-  dependencies: []
-  when: manual
-  only:
-    - cd-pipeline
-
-production-rollback:
-  stage: production-deployment
-  image: babenkoivan/helm-gke
-  before_script:
-    # Activate the service account
-    - gcloud auth activate-service-account --key-file=$SERVICE_ACCOUNT_KEY
-    # Fetch cluster credentials
-    - gcloud container clusters get-credentials $CLUSTER_NAME_PROD --zone $CLUSTER_ZONE_PROD --project symfony-dummy-project
+    - sh ci/fetch-cluster-credentials $SERVICE_ACCOUNT_KEY $CLUSTER_NAME $CLUSTER_ZONE
   script:
     - helm rollback symfony-dummy-project 0
   dependencies: []
   when: manual
   only:
     - cd-pipeline
+
+rollback-staging:
+  <<: *rollbackTemplate
+  variables:
+    ENVIRONMENT: stage
+
+rollback-production:
+  <<: *rollbackTemplate
+  variables:
+    ENVIRONMENT: prod
