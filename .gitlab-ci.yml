@@ -166,6 +166,7 @@ deploy-production:
     CLUSTER_ZONE: $CLUSTER_ZONE_PROD
     HOST: $HOST_PROD
   stage: production-deployment
+  when: manual
 
 end-to-end-test:
   stage: end-to-end-tests
