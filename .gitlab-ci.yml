@@ -141,7 +141,7 @@ registry-update-mysql:
     # Fetch cluster credentials
     - sh ci/fetch-cluster-credentials $SERVICE_ACCOUNT_KEY $CLUSTER_NAME $CLUSTER_ZONE
   script:
-    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=$ENVIRONMENT,nginx.host=$HOST,nginx.ip=$STATIC_IP,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
+    - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=$ENVIRONMENT,nginx.host=$HOST,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
   dependencies: []
   only:
     - cd-pipeline

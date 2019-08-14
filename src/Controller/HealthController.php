@@ -24,7 +24,8 @@ final class HealthController extends AbstractController
     }
 
     /**
-     * @Route("/health", name="health_status", methods={"GET"})
+     * @Route("/healthz")
+     * @Route("/")
      * @return Response
      */
     public function status(): Response
