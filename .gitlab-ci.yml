@@ -109,7 +109,7 @@ integration-tests:
     - echo $CONTAINER_REGISTRY_PASSWORD | docker login -u $CONTAINER_REGISTRY_USER --password-stdin
     - docker push babenkoivan/$BUILD_IMAGE:${CI_COMMIT_SHA:0:8}
   only:
-    - cd-pipeline
+    - master
 
 registry-update-php-fpm:
   <<: *registryUpdateTemplate
@@ -144,7 +144,7 @@ registry-update-mysql:
     - helm upgrade symfony-dummy-project helm --install --set-string phpfpm.env.plain.APP_ENV=$ENVIRONMENT,nginx.host=$HOST,imageTag=${CI_COMMIT_SHA:0:8} --namespace symfony-dummy-project
   dependencies: []
   only:
-    - cd-pipeline
+    - master
 
 deploy-staging:
   <<: *deployTemplate
@@ -177,7 +177,7 @@ end-to-end-test:
     - newman run -e tests/EndToEnd/env.stage.json tests/EndToEnd/collection.json
   dependencies: []
   only:
-    - cd-pipeline
+    - master
 
 .rollback-template: &rollbackTemplate
   image: babenkoivan/helm-gke
@@ -189,7 +189,7 @@ end-to-end-test:
   dependencies: []
   when: manual
   only:
-    - cd-pipeline
+    - master
 
 rollback-staging:
   <<: *rollbackTemplate
